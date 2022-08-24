@@ -11,10 +11,12 @@ PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY', get_random_secret_key())
 PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY', get_random_secret_key())
 
 
-DEBUG = os.getenv("DEBUG", "False") == "True"
+DEBUG = "False"
+# os.getenv("DEBUG", "False") == "True"
 #BASE_DIR = Path(__file__).resolve().parent.parent
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ALLOWED_HOSTS = ['.vercel.app', '.now.sh']
+ALLOWED_HOSTS = ['*']
+# ['.vercel.app', '.now.sh']
 # os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1:8000").split(",")
 
 # settings.py
@@ -77,24 +79,24 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static_in_env')]
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles_build', 'static_root')
+STATIC_ROOT = os.path.join(BASE_DIR, 'static_root')
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media_root')
 
-# DEVELOPMENT_MODE = os.getenv("DEVELOPMENT_MODE", "False") == "True"
-# if DEVELOPMENT_MODE is True:
-#     DATABASES = {
-#         "default": {
-#             "ENGINE": "django.db.backends.sqlite3",
-#             "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
-#         }
-#     }
-# elif len(sys.argv) > 0 and sys.argv[1] != 'collectstatic':
-#     if os.getenv("DATABASE_URL", None) is None:
-#         raise Exception("DATABASE_URL environment variable not defined")
-#     DATABASES = {
-#         "default": dj_database_url.parse(os.environ.get("DATABASE_URL")),
-#     }
+DEVELOPMENT_MODE = os.getenv("DEVELOPMENT_MODE", "False") == "True"
+if DEVELOPMENT_MODE is True:
+     DATABASES = {
+         "default": {
+             "ENGINE": "django.db.backends.sqlite3",
+             "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
+         }
+     }
+elif len(sys.argv) > 0 and sys.argv[1] != 'collectstatic':
+     if os.getenv("DATABASE_URL", None) is None:
+         raise Exception("DATABASE_URL environment variable not defined")
+     DATABASES = {
+         "default": dj_database_url.parse(os.environ.get("DATABASE_URL")),
+     }
 
 AUTH_PASSWORD_VALIDATORS = [
     {
