@@ -3,6 +3,8 @@ from django.db import models
 from django.db.models import Sum
 from django.shortcuts import reverse
 from django_countries.fields import CountryField
+import secrets
+from .paystack import PayStack
 
 # Create your models here.
 CATEGORY_CHOICES = (
@@ -120,6 +122,7 @@ class Order(models.Model):
     start_date = models.DateTimeField(auto_now_add=True)
     ordered_date = models.DateTimeField()
     ordered = models.BooleanField(default=False)
+    #paid = models.BooleanField(default=False)
     shipping_address = models.ForeignKey(
         'BillingAddress', related_name='shipping_address', on_delete=models.SET_NULL, blank=True, null=True)
     billing_address = models.ForeignKey(
@@ -175,6 +178,7 @@ class BillingAddress(models.Model):
 
 class Payment(models.Model):
     stripe_charge_id = models.CharField(max_length=50)
+    paystack_ref_id = models.CharField(max_length=150, blank=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL,
                              on_delete=models.SET_NULL, blank=True, null=True)
     amount = models.FloatField()
@@ -183,8 +187,34 @@ class Payment(models.Model):
     verified = models.BooleanField(default=False)
     timestamp = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return self.user.username
+    class Meta:
+        ordering = ("-timestamp",)
+
+    def __str__(self) -> str:
+        return f"{self.user.username} - {self.amount}"
+
+    def save(self, *args, **kwargs):
+        while not self.ref:
+            ref = secrets.token_urlsafe(50)
+            object_with_similar_ref = Payment.objects.filter(ref=ref).first()
+            if not object_with_similar_ref:
+                self.ref = ref
+        super().save(*args, **kwargs)
+
+    def amount_value(self):
+        return self.amount * 100
+
+    
+    def verify_payment(self):
+        paystack = PayStack()
+        status, result = paystack.verify_payment(self.ref, self.amount)
+        if status:
+            self.paystack_response = result
+            if result["amount"] / 100 == self.amount:
+                self.completed = True
+            self.save()
+            return True
+        return False
 
 class Coupon(models.Model):
     code = models.CharField(max_length=15)

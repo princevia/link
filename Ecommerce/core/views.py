@@ -3,12 +3,13 @@ from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http.request import HttpRequest
+from django.http.response import HttpResponse
 from django.views.generic import ListView, DetailView, View
-from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
-from .forms import CheckoutForm, CouponForm, RefundForm
+from .forms import CheckoutForm, CouponForm, RefundForm, PaymentForm
 from .models import Item, OrderItem, Order, BillingAddress, Payment, Coupon, Refund, Category
 from django.http import HttpResponseRedirect
 from django.shortcuts import render_to_response
@@ -23,6 +24,35 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 def create_ref_code():
     return ''.join(random.choices(string.ascii_lowercase + string.digits, k=20))
 
+def initiate_payment(request: HttpRequest) -> HttpResponse:
+    if request.method == "POST":
+        payment_form = PaymentForm(request.POST)
+        if payment_form.is_valid():
+            payment: Payment = payment_form.save()
+            return render(request, 'make_payment.html', {'payment': payment, 'paystack_public_key': settings.PAYSTACK_PUBLIC_KEY})
+    else:
+        payment_form = PaymentForm()
+    return render(request, "initiate_payment.html", {"payment_form": payment_form,},)
+
+def verify_payment(request, ref: str):
+    trxref = request.GET["trxref"]
+    if trxref != ref:
+        messages.error(
+            request,
+            "The transaction reference passed was different from the actual reference. Please do not modify data during transactions",
+        )
+    payment: Payment = get_object_or_404(Payment, ref=ref) 
+    if payment.verify_payment():
+        messages.success(
+            request, f"Payment Completed Successfully, NGN {payment.amount}."
+        )
+        messages.success(
+            request, f"Your new credit balance is NGN {payment.user.credit}."
+        )
+    else:
+        messages.warning(request, "Sorry, your payment could not be confirmed.")
+    return redirect("initiate-payment")
+
 
 class PaymentView(View):
     def get(self, *args, **kwargs):
@@ -34,6 +64,12 @@ class PaymentView(View):
                 'DISPLAY_COUPON_FORM': False
             }
             return render(self.request, "payment.html", context)
+        elif order.billing_address:
+            context = {
+                'order': order,
+                'DISPLAY_COUPON_FORM': False
+            }
+            return render(self.request, "make_payment.html", context)
         else:
             messages.warning(
                 self.request, "u have not added a billing address")
@@ -206,6 +242,8 @@ class CheckoutView(View):
                 # add redirect to the selected payment option
                 if payment_option == 'S':
                     return redirect('core:payment', payment_option='stripe')
+                elif payment_option == 'PS':
+                    return redirect('core:veerify-payment', payment_option='paystack')
                 elif payment_option == 'P':
                     return redirect('core:payment', payment_option='paypal')
                 else:

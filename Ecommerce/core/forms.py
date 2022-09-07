@@ -5,9 +5,14 @@ from . import models
 
 PAYMENT_CHOICES = (
     ('S', 'Stripe'),
+    ('PS', 'Paystack'),
     ('P', 'PayPal')
 )
 
+class PaymentForm(forms.ModelForm):
+    class Meta:
+        model = models.Payment
+        fields = ('amount', 'email')
 
 class CheckoutForm(forms.Form):
     street_address = forms.CharField(widget=forms.TextInput(attrs={

@@ -29,6 +29,8 @@ urlpatterns = [
     path('shop/', ShopView.as_view(), name='shop'),
     path('order-summary/', OrderSummaryView.as_view(), name='order-summary'),
     path('cart/', CartView.as_view(), name='cart'),
+    path('initiate-payment', views.initiate_payment, name="initiate-payment"),
+    path('verify-payment/<str:ref>/', views.verify_payment, name="verify-payment"),
     path('remove-item-from-cart/<slug>/', remove_single_item_from_cart,
          name='remove-single-item-from-cart'),
     path('payment/<payment_option>/', PaymentView.as_view(), name='payment'),
